@@ -185,7 +185,7 @@ HAL_GPIO_Init() 会设置 OSPEEDR 的对应位。
 ### 上下拉电阻配置
 
 **关键寄存器**：
-
+>![](assets/GPIO/file-20260124134456766.png)
 - **GPIOx_PUPDR**（上下拉寄存器，偏移 0x0C，32 位，R/W，重置值视端口而定，如 GPIOA 为 0x64000000）  
     该寄存器控制内部弱上/下拉电阻（≈40 kΩ）。每引脚占用 2 位（位 2y+1:2y，y=0-15）。在输入或复用模式下有效；在模拟模式下自动禁用。
     
@@ -213,13 +213,15 @@ HAL_GPIO_Init() 会设置 PUPDR 的对应位。
 
 - **GPIOx_AFRL**（低引脚复用寄存器，偏移 0x20，32 位，R/W，重置值 0x00000000）  
     控制引脚 0-7 的复用功能。每引脚占用 4 位（位 4y+3:4y，y=0-7）。
+    >![](assets/GPIO/file-20260124134920907.png)
     
-    - 值 0-15：对应 AF0-AF15（AF0 通常为系统功能，AF1-AF15 为外设，如 TIM、USART）。仅在 MODER=10 时有效。
+	- 值 0-15：对应 AF0-AF15（AF0 通常为系统功能，AF1-AF15 为外设，如 TIM、USART）。仅在 MODER=10 时有效。
         
 - **GPIOx_AFRH**（高引脚复用寄存器，偏移 0x24，32 位，R/W，重置值 0x00000000）  
     控制引脚 8-15 的复用功能。每引脚占用 4 位（位 4(y-8)+3:4(y-8)，y=8-15）。
+    >![](assets/GPIO/file-20260124134943051.png)
     
-    - 值 0-15：同上。
+	- 值 0-15：同上。
         
 
 **HAL API 映射**：  
@@ -236,14 +238,17 @@ HAL_GPIO_Init() 会根据 Pin 值选择 AFRL 或 AFRH，并设置对应 4 位。
    **关键寄存器**：
 
 - **GPIOx_IDR**（输入数据寄存器，偏移 0x10，16 位，只读，重置值未定义）  
+    >![](assets/GPIO/file-20260124135243947.png)
     反映每个引脚的当前逻辑电平（低 16 位，位 y=0-15）。每 AHB1 时钟周期采样一次。用于读取输入状态。
     
+    
 - **GPIOx_ODR**（输出数据寄存器，偏移 0x14，16 位，R/W，重置值 0x0000）  
+    >![](assets/GPIO/file-20260124135306897.png)
     控制输出引脚的逻辑电平（低 16 位，位 y=0-15）。写操作设置输出；读返回上次写值。仅在输出或复用模式有效。
     
 - **GPIOx_BSRR**（原子置位/复位寄存器，偏移 0x18，32 位，只写，重置值 0x0000）  
     用于原子操作，避免读-改-写竞争（中断安全）。
-    
+    >![](assets/GPIO/file-20260124135327495.png)
     - 低 16 位（BSy）：写 1 将引脚 y 置 1（输出高），写 0 无影响。
         
     - 高 16 位（BRy）：写 1 将引脚 y 置 0（输出低），写 0 无影响。
@@ -251,27 +256,29 @@ HAL_GPIO_Init() 会根据 Pin 值选择 AFRL 或 AFRH，并设置对应 4 位。
 
 **HAL API 映射**：
 
-
-GPIO_PinState HAL_GPIO_ReadPin(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin); // 读取 IDR 对应位，返回 GPIO_PIN_SET 或 GPIO_PIN_RESET。
+```c
+GPIO_PinState HAL_GPIO_ReadPin(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin); // 读取 IDR 对应位，返回 GPIO_PIN_SET 或 GPIO_PIN_RESET。`
 
 void HAL_GPIO_WritePin(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, GPIO_PinState PinState); // 使用 BSRR 置 1 (SET) 或 置 0 (RESET)。` 
 
 void HAL_GPIO_TogglePin(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin); // 读 ODR 对应位，取反，然后用 BSRR 设置。`
+```
 
 ### 配置锁定
 
-![[Pasted image 20260104224332.png]] **关键寄存器**：
+ **关键寄存器**：
 
 - **GPIOx_LCKR**（锁定寄存器，偏移 0x1C，32 位，R/W，重置值 0x0000）  
+    >![](assets/GPIO/file-20260124135408010.png)
     用于锁定引脚配置，防止意外修改。低 16 位（LCKy）：写 1 表示锁定引脚 y。位 16（LCKK）：锁定键位。  
     锁定序列：写 LCKR = (LCKy | 0x10000) → 写 LCKR = LCKy → 写 LCKR = (LCKy | 0x10000) → 读 LCKR（应为 LCKy，无 LCKK=1） → 读 LCKR（LCKK=1，表示锁定）。锁定后，MODER、OTYPER、OSPEEDR、PUPDR、AFR 不可改，直到复位。
     
 
 **HAL API 映射**：
 
-- HAL_StatusTypeDef HAL_GPIO_LockPin(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin); // 执行上述锁定序列，设置 LCKR 并验证。返回 HAL_OK 或 HAL_ERROR。
-    
-
+```c
+HAL_StatusTypeDef HAL_GPIO_LockPin(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin); // 执行上述锁定序列，设置 LCKR 并验证。返回 HAL_OK 或 HAL_ERROR。
+```
 ## 4. 高级特性与中断/DMA (Advanced Features & Interrupts/DMA)
 
 ### 配置锁定机制
