@@ -44,13 +44,13 @@ GPIO（General Purpose Input/Output）是单片机最基础的外设，用于直
 
 ## 2. 硬件原理与内部框图 (Hardware Architecture)
 
-> ![[Pasted image 20260104222642.png]] （官方参考手册中的 “General-purpose I/O structure” 或 “Basic structure of I/O port bit”）
+>  ![](assets/GPIO/file-20260124120245826.png)
 
 ### 内部框图解析
 
 每个引脚的内部结构主要分为三部分：
 
-1. **输入路径**：![[Pasted image 20260104222753.png]]
+1. **输入路径**
     
     - 施密特触发器（Schmitt Trigger）将外部模拟信号整形为数字电平
         
@@ -58,7 +58,7 @@ GPIO（General Purpose Input/Output）是单片机最基础的外设，用于直
         
     - 数据送入输入数据寄存器 (IDR)
         
-2. **输出路径**： ![[Pasted image 20260104222828.png]]
+2. **输出路径**： 
     
     - 推挽驱动器：P-MOS + N-MOS 组合，可主动输出高/低电平
         
@@ -66,7 +66,7 @@ GPIO（General Purpose Input/Output）是单片机最基础的外设，用于直
         
     - 输出速度由驱动电流控制，影响边沿陡峭度和 EMI
         
-3. **复用/保护部分**：![[Pasted image 20260104222852.png]]
+3. **复用/保护部分**：
     
     - 复用选择器：GPIO 模式下连接输出驱动器，AF 模式下连接外设信号
         
@@ -108,17 +108,16 @@ GPIO（General Purpose Input/Output）是单片机最基础的外设，用于直
 
 ## 3. 核心机制：API 与寄存器映射 (Core Mapping: API vs Registers)
 
-本节完整覆盖所有 GPIO 相关寄存器及 HAL 库主要 API 映射。按照参考手册的逻辑，先详细介绍每个寄存器（包括位字段、描述），然后介绍配置或操作该寄存器的 HAL API。 ![[Pasted image 20260104223038.png]] ![[Pasted image 20260104223535.png]]
+本节完整覆盖所有 GPIO 相关寄存器及 HAL 库主要 API 映射。按照参考手册的逻辑，先详细介绍每个寄存器（包括位字段、描述），然后介绍配置或操作该寄存器的 HAL API。  
 
 ### 模式与输出类型配置
 
 **关键寄存器**：
-
-- **GPIOx_MODER**（模式寄存器，偏移 0x00，32 位，R/W，重置值视端口而定，如 GPIOA 为 0xA8000000）  
+- **GPIOx_MODER**（模式寄存器，偏移 0x00，32 位，R/W，重置值视端口而定，如 GPIOA 为 0xA8000000） 
     该寄存器控制每个引脚的模式。每引脚占用 2 位（位 2y+1:2y，y=0-15）。
+    >![](assets/GPIO/file-20260124121442758.png)
     
-    - 00：输入模式（默认重置后为输入，除特定引脚）。引脚作为数字输入或浮空。
-        
+	- 00：输入模式（默认重置后为输入，除特定引脚）。引脚作为数字输入或浮空。
     - 01：通用输出模式。引脚作为数字输出，可通过 ODR 或 BSRR 控制。
         
     - 10：复用功能模式（Alternate Function）。引脚连接到内部外设信号（如 USART、SPI）。需结合 AFRL/AFRH 配置。
@@ -127,10 +126,13 @@ GPIO（General Purpose Input/Output）是单片机最基础的外设，用于直
         
 - **GPIOx_OTYPER**（输出类型寄存器，偏移 0x04，16 位，R/W，重置值 0x0000）  
     该寄存器控制输出引脚的类型。每引脚占用 1 位（位 y，y=0-15）。仅在 MODER 为输出或复用模式时有效。
+    >![](assets/GPIO/file-20260124121548946.png)
     
-    - 0：推挽输出 (Push-Pull，默认)。P-MOS 和 N-MOS 交替导通，可主动输出高/低电平。
+    - 位 31:16 保留，必须保持复位值。
         
-    - 1：开漏输出 (Open-Drain)。仅 N-MOS 工作，输出低时接地，高时高阻态（需外部上拉电阻）。
+    - 位 15:0 OTy[1:0]：端口 x 配置位 (Port x configuration bits) (y = 0..15)，这些位通过软件写入，用于配置 I/O 端口的输出类型。
+	- 0：输出推挽（复位状态）
+	- 1：输出开漏
         
 
 **HAL API 映射**：  
@@ -155,7 +157,9 @@ HAL_GPIO_Init() 会根据 Mode 值自动操作 MODER 和 OTYPER 的对应位。
 **关键寄存器**：
 
 - **GPIOx_OSPEEDR**（输出速度寄存器，偏移 0x08，32 位，R/W，重置值视端口而定，如 GPIOA 为 0x0C000000）  
-    该寄存器控制输出信号的翻转速度（Slew Rate），影响 EMI 和功耗。每引脚占用 2 位（位 2y+1:2y，y=0-15）。仅在 MODER 为输出或复用模式时有效。
+>![](assets/GPIO/file-20260124121846017.png)
+    
+该寄存器控制输出信号的翻转速度（Slew Rate），影响 EMI 和功耗。每引脚占用 2 位（位 2y+1:2y，y=0-15）。仅在 MODER 为输出或复用模式时有效。
     
     - 00：Low speed（≈2 MHz，省电，低 EMI）。
         
@@ -229,7 +233,7 @@ HAL_GPIO_Init() 会根据 Pin 值选择 AFRL 或 AFRH，并设置对应 4 位。
 
 ### 数据读写（核心操作寄存器）
 
-![[Pasted image 20260104223644.png]] ![[Pasted image 20260104223724.png]] ![[Pasted image 20260104223919.png]] ![[Pasted image 20260104224120.png]] **关键寄存器**：
+   **关键寄存器**：
 
 - **GPIOx_IDR**（输入数据寄存器，偏移 0x10，16 位，只读，重置值未定义）  
     反映每个引脚的当前逻辑电平（低 16 位，位 y=0-15）。每 AHB1 时钟周期采样一次。用于读取输入状态。
@@ -247,11 +251,12 @@ HAL_GPIO_Init() 会根据 Pin 值选择 AFRL 或 AFRH，并设置对应 4 位。
 
 **HAL API 映射**：
 
-```
-GPIO_PinState HAL_GPIO_ReadPin(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin); // 读取 IDR 对应位，返回 GPIO_PIN_SET 或 GPIO_PIN_RESET。`  
-void HAL_GPIO_WritePin(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, GPIO_PinState PinState); // 使用 BSRR 置 1 (SET) 或 置 0 (RESET)。`  
-void HAL_GPIO_TogglePin(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin); // 读 ODR 对应位，取反，然后用 BSRR 设置。`  
-```
+
+GPIO_PinState HAL_GPIO_ReadPin(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin); // 读取 IDR 对应位，返回 GPIO_PIN_SET 或 GPIO_PIN_RESET。
+
+void HAL_GPIO_WritePin(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin, GPIO_PinState PinState); // 使用 BSRR 置 1 (SET) 或 置 0 (RESET)。` 
+
+void HAL_GPIO_TogglePin(GPIO_TypeDef *GPIOx, uint16_t GPIO_Pin); // 读 ODR 对应位，取反，然后用 BSRR 设置。`
 
 ### 配置锁定
 
